@@ -167,59 +167,59 @@ services:
     networks:
       - microservices_network
 
-  ### product catalog Service    
-  product-catalog-service:
-    image: openjdk:17-jdk-alpine
-    container_name: product-catalog-service
-    volumes:
-      - ./product-catalog-service/target:/app
-    working_dir: /app
-    command: ["java", "-jar", "product-catalog-service-0.0.1-SNAPSHOT.jar"]
-    depends_on:
-      maven-build-product:
-        condition: service_completed_successfully
-      discovery-server:
-        condition: service_healthy
-      product-catalog-db:
-        condition: service_healthy
-    ports:
-      - 8082:8082
-    expose:
-      - 8082
-    healthcheck:
-      test: ["CMD-SHELL", "CMD-SHELL", "curl -f http://product-catalog-service:8082/actuator/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    networks:
-      - microservices_network
+  # ### product catalog Service    
+  # product-catalog-service:
+  #   image: openjdk:17-jdk-alpine
+  #   container_name: product-catalog-service
+  #   volumes:
+  #     - ./product-catalog-service/target:/app
+  #   working_dir: /app
+  #   command: ["java", "-jar", "product-catalog-service-0.0.1-SNAPSHOT.jar"]
+  #   depends_on:
+  #     maven-build-product:
+  #       condition: service_completed_successfully
+  #     discovery-server:
+  #       condition: service_healthy
+  #     product-catalog-db:
+  #       condition: service_healthy
+  #   ports:
+  #     - 8082:8082
+  #   expose:
+  #     - 8082
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "CMD-SHELL", "curl -f http://product-catalog-service:8082/actuator/health || exit 1"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #   networks:
+  #     - microservices_network
 
-  ### order management Service
-  order-management-service:
-    image: openjdk:17-jdk-alpine
-    container_name: order-management-service
-    volumes:
-      - ./order-management-service/target:/app
-    working_dir: /app
-    command: ["java", "-jar", "order-management-service-0.0.1-SNAPSHOT.jar"]
-    depends_on:
-      maven-build-order:
-        condition: service_completed_successfully
-      order-management-db:
-        condition: service_healthy
-      discovery-server:
-        condition: service_healthy
-    ports:
-      - 8081:8081
-    expose:
-      - 8081
-    healthcheck:
-      test: ["CMD-SHELL", "CMD-SHELL", "curl -f http://order-management-service::8081/actuator/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    networks:
-      - microservices_network
+  # ### order management Service
+  # order-management-service:
+  #   image: openjdk:17-jdk-alpine
+  #   container_name: order-management-service
+  #   volumes:
+  #     - ./order-management-service/target:/app
+  #   working_dir: /app
+  #   command: ["java", "-jar", "order-management-service-0.0.1-SNAPSHOT.jar"]
+  #   depends_on:
+  #     maven-build-order:
+  #       condition: service_completed_successfully
+  #     order-management-db:
+  #       condition: service_healthy
+  #     discovery-server:
+  #       condition: service_healthy
+  #   ports:
+  #     - 8081:8081
+  #   expose:
+  #     - 8081
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "CMD-SHELL", "curl -f http://order-management-service::8081/actuator/health || exit 1"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #   networks:
+  #     - microservices_network
 
   ### API Gateway
   api-gateway-server:

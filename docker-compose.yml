@@ -1,0 +1,244 @@
+# version: '4'
+services:
+  ### Postgres DB Product Catalog Service
+  product-catalog-db:
+    container_name: product-catalog-db
+    image: postgres:15.2
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: product_catalog
+      POSTGRES_USER: llonardo
+      POSTGRES_PASSWORD: 719981612Leo
+    ports:
+      - 5431:5431
+    expose:
+      - 5431
+    command: -p 5431
+    volumes:
+       - ./postgres-data:/var/lib/postgresql/product_catalog
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U llonardo -d product_catalog || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  ### Postgres DB Order Management Service
+  order-management-db:
+    container_name: order-management-db
+    image: postgres:15.2
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: order_management
+      POSTGRES_USER: llonardo
+      POSTGRES_PASSWORD: 719981612Leo
+    ports:
+      - 5433:5433
+    expose:
+      - 5433
+    command: -p 5433
+    volumes:
+       - ./postgres-data:/var/lib/postgresql/order_management
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U llonardo -d order_management || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  ### POSGRES DATABASE FOR KEYCLOAK
+  keycloak-db:
+    container_name: keycloak-db
+    image: postgres:15.2
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: db_keycloak
+      POSTGRES_USER: llonardo798
+      POSTGRES_PASSWORD: 719981612leo
+    ports:
+      - 5434:5434
+    expose:
+      - 5434
+    command: -p 5434
+
+  ### Keycloak
+  keycloak:
+    container_name: keycloak
+    image: quay.io/keycloak/keycloak:21.0.2
+    command: ["start-dev"]
+    ports:
+      - 8181:8181
+    expose:
+      - 8181
+    depends_on:
+      - keycloak-db
+    environment:
+      DB_VENDOR: POSTGRES
+      DB_ADDR: keycloak-db
+      DB_DATABASE: keycloak-db
+      DB_PORT: 5434
+      DB_USER: llonardo798  
+      DB_PASSWORD: 719981612Leo
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HTTP_PORT: 8181
+    volumes:
+      - ./keycloak_data:/opt/jboss/keycloak/standalone/data
+
+
+
+  ### Maven build package discovery-server
+  maven-build-discovery-server:
+    image: maven:3.8.4-openjdk-17
+    container_name: maven-build-discovery-server
+    volumes:
+      - .:/workspace
+    working_dir: /workspace/discovery-server/
+    command: ["mvn", "clean", "package"]
+    healthcheck:
+      test: ["CMD-SHELL", "mvn --version || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  ### Maven build package product-catalog-service
+  maven-build-product:
+    image: maven:3.8.4-openjdk-17
+    container_name: maven-build-product
+    volumes:
+      - .:/workspace
+    working_dir: /workspace/product-catalog-service/
+    command: [ "mvn", "clean", "package"]
+    healthcheck:
+      test: ["CMD-SHELL", "mvn --version || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  ## Maven build package order-management-service
+  maven-build-order:
+    image: maven:3.8.4-openjdk-17
+    container_name: maven-build-order
+    volumes:
+      - .:/workspace
+    working_dir: /workspace/order-management-service/
+    command: ["mvn", "clean", "package"]
+    healthcheck:
+      test: ["CMD-SHELL", "mvn --version || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  ### Maven build package api-gateway
+  maven-build-api-gateway:
+    image: maven:3.8.4-openjdk-17
+    container_name: maven-build-api-gateway
+    volumes:
+      - .:/workspace
+    working_dir: /workspace/api-gateway/
+    command: ["mvn", "clean", "package"]
+    healthcheck:
+      test: ["CMD-SHELL", "mvn --version || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+
+
+  ### Discovery server
+  discovery-server:
+    image: openjdk:17-jdk-alpine
+    container_name: discovery-server
+    volumes:
+      - ./discovery-server/target:/app
+    working_dir: /app
+    command: ["sh", "-c", "apk add --no-cache curl && java -jar discovery-server-0.0.1-SNAPSHOT.jar"]
+    depends_on:
+      maven-build-discovery-server:
+        condition: service_completed_successfully
+    ports:
+      - 8761:8761
+    expose:
+      - 8761
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8761/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: "30s"
+    networks:
+      - microservices_network
+
+  ### product catalog Service    
+  product-catalog-service:
+    image: openjdk:17-jdk-alpine
+    container_name: product-catalog-service
+    volumes:
+      - ./product-catalog-service/target:/app
+    working_dir: /app
+    command: ["java", "-jar", "product-catalog-service-0.0.1-SNAPSHOT.jar"]
+    depends_on:
+      maven-build-product:
+        condition: service_completed_successfully
+      discovery-server:
+        condition: service_healthy
+      product-catalog-db:
+        condition: service_healthy
+    ports:
+      - 8082:8082
+    expose:
+      - 8082
+    healthcheck:
+      test: ["CMD-SHELL", "CMD-SHELL", "curl -f http://product-catalog-service:8082/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - microservices_network
+
+  ### order management Service
+  order-management-service:
+    image: openjdk:17-jdk-alpine
+    container_name: order-management-service
+    volumes:
+      - ./order-management-service/target:/app
+    working_dir: /app
+    command: ["java", "-jar", "order-management-service-0.0.1-SNAPSHOT.jar"]
+    depends_on:
+      maven-build-order:
+        condition: service_completed_successfully
+      order-management-db:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+    ports:
+      - 8081:8081
+    expose:
+      - 8081
+    healthcheck:
+      test: ["CMD-SHELL", "CMD-SHELL", "curl -f http://order-management-service::8081/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - microservices_network
+
+  ### API Gateway
+  api-gateway-server:
+    image: openjdk:17-jdk-alpine
+    container_name: api-gateway
+    volumes:
+      - ./api-gateway/target:/app
+    working_dir: /app
+    command: ["java", "-jar", "api-gateway-0.0.1-SNAPSHOT.jar"]
+    depends_on:
+      discovery-server:
+        condition: service_healthy
+    ports:
+      - 8080:8080
+    expose:
+      - 8080
+    networks:
+      - microservices_network
+
+networks:
+  microservices_network:
+    driver: bridge
